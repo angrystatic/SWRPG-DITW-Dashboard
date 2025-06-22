@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Star Wars: Age of Rebellion - Mission Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Orbitron:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a; /* Slate 900 */
+            background-image: 
+                radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 40px),
+                radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 30px);
+            background-size: 550px 550px, 350px 350px;
+            background-position: 0 0, 40px 60px;
+        }
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+        .clock-segment {
+            transition: all 0.3s ease-in-out;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.4);
+        }
+        .log-entry {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .console-container {
+            position: relative;
+            border: 2px solid #4a5568;
+        }
+        .console-container::before, .console-container::after,
+        .console-container > .corner-br::before, .console-container > .corner-bl::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-color: #f59e0b;
+            border-style: solid;
+        }
+        .console-container::before { top: -2px; left: -2px; border-width: 3px 0 0 3px; }
+        .console-container::after { top: -2px; right: -2px; border-width: 3px 3px 0 0; }
+        .console-container > .corner-br::before { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; }
+        .console-container > .corner-bl::after { bottom: -2px; left: -2px; border-width: 0 0 3px 3px; }
+
+        /* Custom Checkbox Styling */
+        .objective-checkbox:checked + .objective-label span {
+            text-decoration: line-through;
+            color: #6b7280; /* gray-500 */
+        }
+        .objective-checkbox:checked + .objective-label .checkbox-custom {
+            background-color: #2563eb; /* blue-600 */
+            border-color: #3b82f6; /* blue-500 */
+        }
+        .objective-checkbox:checked + .objective-label .checkbox-custom::after {
+            opacity: 1;
+        }
+        .checkbox-custom {
+            transition: all 0.2s ease;
+        }
+        .checkbox-custom::after {
+            content: '✓';
+            position: absolute;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+    </style>
+</head>
+<body class="text-white flex items-center justify-center min-h-screen p-4">
+
+    <div class="console-container w-full max-w-6xl bg-gray-900/70 backdrop-blur-sm rounded-2xl shadow-2xl shadow-amber-900/30 p-6 md:p-8">
+        <div class="corner-bl"></div>
+        <div class="corner-br"></div>
+
+        <!-- Header -->
+        <div class="text-center mb-6 flex items-center justify-center gap-4">
+            <img src="https://logos-world.net/wp-content/uploads/2023/04/star-wars-rebel-alliance-logo.png" alt="Rebel Alliance Logo" class="h-16 w-auto">
+            <div>
+                 <h1 class="font-orbitron text-3xl md:text-4xl font-bold text-amber-400 tracking-wider" style="text-shadow: 0 0 5px #f59e0b;">MISSION TRACKER</h1>
+            </div>
+        </div>
+
+        <!-- Doom Clock Section -->
+        <div class="mb-8">
+            <h2 id="doom-clock-name" class="font-orbitron text-2xl text-orange-400 mb-2"></h2>
+            <div id="doom-clock-container" class="flex h-10 md:h-12 rounded-lg overflow-hidden border-2 border-gray-600 mb-3"></div>
+            <div class="grid grid-cols-1 md:grid-cols-2 items-center justify-between gap-4">
+                <div id="doom-clock-status" class="font-orbitron text-2xl font-bold text-orange-500 text-center md:text-left"></div>
+                <div class="flex justify-center md:justify-end">
+                    <button id="reset-button" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transform hover:scale-105 transition-all duration-300">RESET ALL</button>
+                </div>
+            </div>
+        </div>
+        
+        <hr class="border-gray-600/50 my-6">
+        
+        <!-- Mission Log -->
+        <div class="bg-gray-800/60 border border-gray-700 rounded-lg p-4 h-64 overflow-y-auto mb-6">
+            <h2 class="font-orbitron text-xl font-bold text-indigo-300 mb-3 border-b-2 border-indigo-500/30 pb-2">MISSION LOG</h2>
+            <div id="mission-log" class="space-y-3 text-gray-300">
+                 <p class="text-gray-500 italic">Awaiting events...</p>
+            </div>
+        </div>
+
+        <hr class="border-gray-600/50 my-6">
+
+        <!-- Objectives Section -->
+        <div>
+            <h2 class="font-orbitron text-2xl text-cyan-400 mb-4">MISSION OBJECTIVES</h2>
+            <div id="objectives-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Objective checklists will be generated here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // --- Sound Synthesis ---
+            let synths = {};
+            function setupSounds() {
+                if (Tone.context.state !== 'running') {
+                    Tone.start();
+                }
+                synths.advance = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 0.1 } }).toDestination();
+                synths.reset = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 0.2 } }).toDestination();
+                synths.event = new Tone.Synth({ oscillator: { type: 'square' }, envelope: { attack: 0.01, decay: 0.3, sustain: 0.1, release: 0.3 } }).toDestination();
+                synths.objectiveCheck = new Tone.Synth({ oscillator: { type: 'sawtooth' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0.05, release: 0.1 } }).toDestination();
+            }
+            document.body.addEventListener('click', setupSounds, { once: true });
+
+            // --- Log Manager ---
+            const missionLog = {
+                element: document.getElementById('mission-log'),
+                log(message, type = 'doom') {
+                    if (this.element.querySelector('p.italic')) {
+                        this.element.innerHTML = '';
+                    }
+
+                    const colors = {
+                        doom: { border: 'border-orange-500/50', bg: 'bg-orange-900/30', text: 'text-orange-400' },
+                        objective: { border: 'border-blue-500/50', bg: 'bg-blue-900/30', text: 'text-blue-400' },
+                        location: { border: 'border-green-500/50', bg: 'bg-green-900/30', text: 'text-green-400' }
+                    };
+                    const style = colors[type];
+
+                    const logEntry = document.createElement('div');
+                    logEntry.className = `log-entry p-2 rounded-md border ${style.border} ${style.bg}`;
+                    logEntry.innerHTML = `<div class="font-bold ${style.text}">${message}</div>`;
+                    this.element.prepend(logEntry);
+                },
+                clear() {
+                    this.element.innerHTML = '<p class="text-gray-500 italic">Awaiting events...</p>';
+                }
+            };
+
+            // --- Doom Clock Manager ---
+            const doomClock = {
+                name: 'Event Timer',
+                maxTicks: 11,
+                currentTick: 0,
+                events: {
+                    2: `Shortness of Breath: Life support is failing. <br><span class="font-normal text-yellow-300 mt-1 block">Before combat, make an Average <span class="text-purple-400 font-semibold">◆◆</span> Resilience check. Failure: 2 unrecoverable Strain. Difficulty increases every other encounter.</span>`,
+                    5: "Crew Unconscious: Lack of oxygen renders crew unconscious.",
+                    6: "Black Hole Imminent!: 60 minutes until event horizon.",
+                    8: "Crew Dead: The remaining NPC crew perishes.",
+                    9: "Reinforcements Arrive: Imperial or Rebel forces arrive.",
+                    10: "GAME OVER: The Shadow Raptor is swallowed by the black hole.",
+                    11: "REINFORCEMENTS ENGAGE: Arriving ships reach weapons range."
+                },
+                elements: {
+                    name: document.getElementById('doom-clock-name'),
+                    container: document.getElementById('doom-clock-container'),
+                    status: document.getElementById('doom-clock-status'),
+                },
+                init() {
+                    this.elements.name.textContent = this.name.toUpperCase();
+                    this.render();
+                },
+                render() {
+                    this.elements.container.innerHTML = '';
+                    for (let i = 0; i < this.maxTicks; i++) {
+                        const segment = document.createElement('div');
+                        segment.className = `clock-segment flex-1 ${i < this.currentTick ? 'bg-orange-500' : 'bg-gray-700'}`;
+                        this.elements.container.appendChild(segment);
+                    }
+                    this.elements.status.textContent = `${this.currentTick} / ${this.maxTicks}`;
+                },
+                advance() {
+                    if (this.isComplete()) return;
+                    if (synths.advance) synths.advance.triggerAttackRelease('C3', '8n');
+                    this.currentTick++;
+                    if (this.events[this.currentTick]) {
+                        missionLog.log(`<span class="font-orbitron">DOOM TICK ${this.currentTick}:</span> ${this.events[this.currentTick]}`, 'doom');
+                        if (synths.event) synths.event.triggerAttackRelease('G2', '4n');
+                    }
+                    this.render();
+                },
+                reset() {
+                    this.currentTick = 0;
+                    this.render();
+                },
+                isComplete() {
+                    return this.currentTick >= this.maxTicks;
+                }
+            };
+            
+            // --- Objective Manager ---
+            const objectiveManager = {
+                container: document.getElementById('objectives-container'),
+                data: [],
+                init() {
+                    this.data = [
+                        { id: 'pcomm', location: 'Primary Comms', deck: 'F-01', suiteCompleted: false, objectives: [{ id: 'pcomm-a', text: 'Prevent Droids from Calling Reinforcements' }, { id: 'pcomm-b', text: 'Call for Rebel Support' }, { id: 'pcomm-c', text: 'Warn Rebel Fleet' }, { id: 'pcomm-d', text: 'Disable Primary Comms' }, { id: 'pcomm-e', text: 'Erase Encryption Codes' }] },
+                        { id: 'scomm', location: 'Secondary Comms', deck: 'F-02', suiteCompleted: false, objectives: [{ id: 'scomm-a', text: 'Call for Abandon Ship' }, { id: 'scomm-b', text: 'Call for Rebel Support' }, { id: 'scomm-c', text: 'Call to Repel Boarders' }] },
+                        { id: 'intops', location: 'Int Ops, Barracks, Brig', deck: 'F-08', suiteCompleted: false, objectives: [{ id: 'intops-a', text: 'Free the Int Ops Crew' }, { id: 'intops-b', text: 'Rearm and Resupply' }] },
+                        { id: 'fwdhangar', location: 'Forward Hangar Bay', deck: 'F-07', suiteCompleted: false, objectives: [{ id: 'fwdhangar-a', text: 'Secure the Hangar Bay' }, { id: 'fwdhangar-b', text: 'Disable the Spacecraft' }, { id: 'fwdhangar-c', text: 'Stop Droids shooting escape pods' }, { id: 'fwdhangar-d', text: 'Stop Droids from escaping' }] },
+                        { id: 'analysis', location: 'Analysis Deck', deck: 'F-15', suiteCompleted: false, objectives: [{ id: 'analysis-a', text: 'Secure/Wipe Intelligence Datacore' }, { id: 'analysis-b', text: 'Free the Analysis Crew' }] },
+                        { id: 'bridge', location: 'Bridge', deck: 'F-17', suiteCompleted: false, objectives: [{ id: 'bridge-a', text: 'Secure the Bridge' }, { id: 'bridge-b', text: 'Secure Navicomputer' }] },
+                        { id: 'lifesupport', location: 'Life Support', deck: 'F-26', suiteCompleted: false, objectives: [{ id: 'lifesupport-a', text: 'Restore Life Support' }] },
+                        { id: 'afthangar', location: 'Aft Hangar Bay', deck: 'A-07', suiteCompleted: false, objectives: [{ id: 'afthangar-a', text: 'Secure the Hangar Bay' }, { id: 'afthangar-b', text: 'Disable the 6 Shuttlecraft' }] },
+                        { id: 'engineering', location: 'Engineering', deck: 'A-09', suiteCompleted: false, objectives: [{ id: 'engineering-a', text: 'Secure Engineering' }, { id: 'engineering-b', text: 'Stop the Hatch Lockdown' }] },
+                        { id: 'sublight', location: 'Sublight-Engine Control 5', deck: 'A-12/13', suiteCompleted: false, objectives: [{ id: 'sublight-a', text: 'Secure Control Room 5' }, { id: 'sublight-b', text: 'Activate Sublight Engine 5' }] }
+                    ].map(loc => ({ ...loc, objectives: loc.objectives.map(obj => ({...obj, completed: false})) }));
+                    this.render();
+                },
+                render() {
+                    this.container.innerHTML = '';
+                    this.data.forEach(loc => this.createLocationCard(loc));
+                },
+                createLocationCard(locationData) {
+                    const card = document.createElement('div');
+                    card.className = 'bg-gray-800/80 p-4 rounded-lg border border-gray-700 flex flex-col';
+                    
+                    const completedCount = locationData.objectives.filter(o => o.completed).length;
+                    const totalCount = locationData.objectives.length;
+                    const allObjectivesComplete = completedCount === totalCount;
+
+                    card.innerHTML = `
+                        <div class="mb-2">
+                             <label for="master-check-${locationData.id}" class="objective-label flex items-start cursor-pointer">
+                                <input type="checkbox" id="master-check-${locationData.id}" class="hidden objective-checkbox" ${allObjectivesComplete ? 'checked' : ''}>
+                                <div class="relative checkbox-custom w-6 h-6 bg-gray-600 border-2 border-gray-500 rounded-md mr-3 mt-1 flex-shrink-0"></div>
+                                <div>
+                                    <h3 class="font-orbitron text-lg text-cyan-300 truncate leading-tight">${locationData.location}</h3>
+                                    <span class="text-xs font-semibold text-gray-400">DECK ${locationData.deck}</span>
+                                </div>
+                            </label>
+                        </div>
+                        <p class="text-sm text-cyan-500 mb-3 ml-9">Objectives: ${completedCount}/${totalCount}</p>
+                        <div class="space-y-2 flex-grow pl-9">
+                            ${locationData.objectives.map(obj => this.createObjectiveCheckbox(obj)).join('')}
+                        </div>
+                    `;
+                    this.container.appendChild(card);
+                    
+                    document.getElementById(`master-check-${locationData.id}`).addEventListener('change', (e) => this.completeSuite(locationData.id, e.target.checked));
+
+                    locationData.objectives.forEach(obj => {
+                       document.getElementById(obj.id).addEventListener('change', (e) => this.toggleObjective(locationData.id, obj.id, e.target.checked));
+                    });
+                },
+                createObjectiveCheckbox(obj) {
+                    return `
+                        <div>
+                            <input type="checkbox" id="${obj.id}" class="hidden objective-checkbox" ${obj.completed ? 'checked' : ''}>
+                            <label for="${obj.id}" class="objective-label flex items-center cursor-pointer p-1 rounded-md hover:bg-gray-700/50">
+                                <div class="relative checkbox-custom w-5 h-5 bg-gray-600 border-2 border-gray-500 rounded mr-3"></div>
+                                <span class="flex-1">${obj.text}</span>
+                            </label>
+                        </div>
+                    `;
+                },
+                toggleObjective(locationId, objectiveId, isChecked) {
+                    if(synths.objectiveCheck) synths.objectiveCheck.triggerAttackRelease(isChecked ? 'C4' : 'C3', '8n');
+
+                    const location = this.data.find(l => l.id === locationId);
+                    const objective = location.objectives.find(o => o.id === objectiveId);
+                    objective.completed = isChecked;
+
+                    if (isChecked) {
+                        missionLog.log(`<span class="font-orbitron">OBJECTIVE:</span> (${location.location}) ${objective.text}`, 'objective');
+                    }
+
+                    this.checkSuiteCompletion(location);
+                    this.render(); // Re-render all cards to update counts and styles
+                },
+                completeSuite(locationId, isChecked) {
+                    if (!isChecked) return; // Prevent de-selecting all via master
+                    const location = this.data.find(l => l.id === locationId);
+                    location.objectives.forEach(obj => {
+                        if (!obj.completed) {
+                            obj.completed = true;
+                            missionLog.log(`<span class="font-orbitron">OBJECTIVE:</span> (${location.location}) ${obj.text}`, 'objective');
+                        }
+                    });
+                    this.checkSuiteCompletion(location);
+                    this.render();
+                },
+                checkSuiteCompletion(location) {
+                    const allComplete = location.objectives.every(o => o.completed);
+                    if (allComplete && !location.suiteCompleted) {
+                        location.suiteCompleted = true;
+                        missionLog.log(`<span class="font-orbitron">LOCATION SECURED:</span> ${location.location}. Doom Clock advances!`, 'location');
+                        doomClock.advance();
+                    }
+                },
+                reset() {
+                    this.init();
+                }
+            };
+
+            // --- Global Controls ---
+            document.getElementById('reset-button').addEventListener('click', () => {
+                if (synths.reset) synths.reset.triggerAttackRelease('G2', '2n');
+                doomClock.reset();
+                objectiveManager.reset();
+                missionLog.clear();
+            });
+
+            // Initialize all systems
+            doomClock.init();
+            objectiveManager.init();
+        });
+    </script>
+</body>
+</html>
