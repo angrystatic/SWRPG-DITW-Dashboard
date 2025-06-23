@@ -252,8 +252,8 @@
 
                     card.innerHTML = `
                         <div class="mb-2">
+                             <input type="checkbox" id="master-check-${locationData.id}" class="hidden objective-checkbox" ${allObjectivesComplete ? 'checked' : ''}>
                              <label for="master-check-${locationData.id}" class="objective-label flex items-start cursor-pointer">
-                                <input type="checkbox" id="master-check-${locationData.id}" class="hidden objective-checkbox" ${allObjectivesComplete ? 'checked' : ''}>
                                 <div class="relative checkbox-custom w-6 h-6 bg-gray-600 border-2 border-gray-500 rounded-md mr-3 mt-1 flex-shrink-0"></div>
                                 <div>
                                     <h3 class="font-orbitron text-lg text-cyan-300 truncate leading-tight">${locationData.location}</h3>
